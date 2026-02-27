@@ -1,27 +1,81 @@
 from __future__ import annotations
 
 import os
-import sqlite3
-import threading
 import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
+from sqlalchemy import BigInteger, Float, ForeignKey, String, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "data.db"
+
+
+def _database_url() -> str:
+    raw = os.environ.get("DATABASE_URL", "").strip()
+    if raw:
+        if raw.startswith("postgres://"):
+            return raw.replace("postgres://", "postgresql+psycopg://", 1)
+        if raw.startswith("postgresql://"):
+            return raw.replace("postgresql://", "postgresql+psycopg://", 1)
+        return raw
+    return f"sqlite+pysqlite:///{BASE_DIR / 'data.db'}"
+
+
+DATABASE_URL = _database_url()
+ENGINE = create_engine(DATABASE_URL, future=True)
+SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, future=True)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Thread(Base):
+    __tablename__ = "threads"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    creator_name: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    target_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    deadline: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    pledges: Mapped[list["Pledge"]] = relationship(
+        back_populates="thread", cascade="all, delete-orphan", order_by="desc(Pledge.created_at)"
+    )
+
+
+class Pledge(Base):
+    __tablename__ = "pledges"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    thread_id: Mapped[str] = mapped_column(String, ForeignKey("threads.id", ondelete="CASCADE"), nullable=False)
+    supporter_name: Mapped[str] = mapped_column(String, nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    thread: Mapped[Thread] = relationship(back_populates="pledges")
+
 
 app = Flask(__name__)
-_db_lock = threading.Lock()
 
 
-def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+@contextmanager
+def session_scope():
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def _status(target_amount: float, pledged_total: float, deadline: str) -> str:
@@ -36,118 +90,71 @@ def _status(target_amount: float, pledged_total: float, deadline: str) -> str:
 
 
 def init_db() -> None:
-    with _db_lock:
-        conn = _connect()
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS threads (
-                id TEXT PRIMARY KEY,
-                creator_name TEXT NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT NOT NULL,
-                target_amount REAL NOT NULL,
-                deadline TEXT NOT NULL,
-                created_at INTEGER NOT NULL
-            );
+    Base.metadata.create_all(ENGINE)
 
-            CREATE TABLE IF NOT EXISTS pledges (
-                id TEXT PRIMARY KEY,
-                thread_id TEXT NOT NULL,
-                supporter_name TEXT NOT NULL,
-                amount REAL NOT NULL,
-                created_at INTEGER NOT NULL,
-                FOREIGN KEY(thread_id) REFERENCES threads(id) ON DELETE CASCADE
-            );
-            """
+    with session_scope() as session:
+        existing = session.query(Thread).count()
+        if existing > 0:
+            return
+
+        seed_enabled = os.environ.get("SEED_DEMO", "true").lower() in {"1", "true", "yes"}
+        if not seed_enabled:
+            return
+
+        seed_thread = Thread(
+            id=str(uuid.uuid4()),
+            creator_name="Lucas",
+            title="Vou de Sao Paulo a Santos de bike",
+            description="Saio as 6h da manha no domingo e posto comprovacao do trajeto.",
+            target_amount=1000,
+            deadline=datetime.fromtimestamp(time.time() + 5 * 24 * 3600).strftime("%Y-%m-%d"),
+            created_at=int(time.time() * 1000),
+        )
+        session.add(seed_thread)
+        session.flush()
+
+        session.add(
+            Pledge(
+                id=str(uuid.uuid4()),
+                thread_id=seed_thread.id,
+                supporter_name="Ana",
+                amount=150,
+                created_at=seed_thread.created_at - 5400000,
+            )
+        )
+        session.add(
+            Pledge(
+                id=str(uuid.uuid4()),
+                thread_id=seed_thread.id,
+                supporter_name="Rafa",
+                amount=200,
+                created_at=seed_thread.created_at - 3100000,
+            )
         )
 
-        exists = conn.execute("SELECT COUNT(*) AS c FROM threads").fetchone()["c"]
-        if exists == 0:
-            seed_thread_id = str(uuid.uuid4())
-            now_ms = int(time.time() * 1000)
-            conn.execute(
-                """
-                INSERT INTO threads (id, creator_name, title, description, target_amount, deadline, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    seed_thread_id,
-                    "Lucas",
-                    "Vou de Sao Paulo a Santos de bike",
-                    "Saio as 6h da manha no domingo e posto comprovacao do trajeto.",
-                    1000,
-                    datetime.fromtimestamp(time.time() + 5 * 24 * 3600).strftime("%Y-%m-%d"),
-                    now_ms,
-                ),
-            )
-            conn.execute(
-                """
-                INSERT INTO pledges (id, thread_id, supporter_name, amount, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (str(uuid.uuid4()), seed_thread_id, "Ana", 150, now_ms - 5400000),
-            )
-            conn.execute(
-                """
-                INSERT INTO pledges (id, thread_id, supporter_name, amount, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (str(uuid.uuid4()), seed_thread_id, "Rafa", 200, now_ms - 3100000),
-            )
 
-        conn.commit()
-        conn.close()
+def _serialize_thread(thread: Thread) -> dict:
+    pledges = [
+        {
+            "supporterName": pledge.supporter_name,
+            "amount": float(pledge.amount),
+            "createdAt": int(pledge.created_at),
+        }
+        for pledge in thread.pledges
+    ]
 
-
-def _list_threads() -> list[dict]:
-    with _db_lock:
-        conn = _connect()
-        thread_rows = conn.execute(
-            """
-            SELECT id, creator_name, title, description, target_amount, deadline, created_at
-            FROM threads
-            ORDER BY created_at DESC
-            """
-        ).fetchall()
-
-        result: list[dict] = []
-        for row in thread_rows:
-            pledge_rows = conn.execute(
-                """
-                SELECT supporter_name, amount, created_at
-                FROM pledges
-                WHERE thread_id = ?
-                ORDER BY created_at DESC
-                """,
-                (row["id"],),
-            ).fetchall()
-
-            pledges = [
-                {
-                    "supporterName": p["supporter_name"],
-                    "amount": p["amount"],
-                    "createdAt": p["created_at"],
-                }
-                for p in pledge_rows
-            ]
-
-            pledged_total = sum(p["amount"] for p in pledge_rows)
-            result.append(
-                {
-                    "id": row["id"],
-                    "creatorName": row["creator_name"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "targetAmount": row["target_amount"],
-                    "deadline": row["deadline"],
-                    "createdAt": row["created_at"],
-                    "pledges": pledges,
-                    "status": _status(row["target_amount"], pledged_total, row["deadline"]),
-                }
-            )
-
-        conn.close()
-        return result
+    pledged_total = sum(pledge["amount"] for pledge in pledges)
+    return {
+        "id": thread.id,
+        "creatorName": thread.creator_name,
+        "title": thread.title,
+        "description": thread.description,
+        "targetAmount": float(thread.target_amount),
+        "deadline": thread.deadline,
+        "createdAt": int(thread.created_at),
+        "pledges": pledges,
+        "status": _status(float(thread.target_amount), pledged_total, thread.deadline),
+    }
 
 
 @app.get("/")
@@ -167,7 +174,10 @@ def frontend_script() -> object:
 
 @app.get("/api/threads")
 def get_threads() -> object:
-    return jsonify({"threads": _list_threads()})
+    with session_scope() as session:
+        threads = session.query(Thread).order_by(Thread.created_at.desc()).all()
+        payload = [_serialize_thread(thread) for thread in threads]
+    return jsonify({"threads": payload})
 
 
 @app.post("/api/threads")
@@ -192,19 +202,18 @@ def create_thread() -> object:
         return jsonify({"error": "Prazo invalido. Use formato YYYY-MM-DD."}), 400
 
     thread_id = str(uuid.uuid4())
-    now_ms = int(time.time() * 1000)
+    thread = Thread(
+        id=thread_id,
+        creator_name=creator_name,
+        title=title,
+        description=description,
+        target_amount=target_amount,
+        deadline=deadline,
+        created_at=int(time.time() * 1000),
+    )
 
-    with _db_lock:
-        conn = _connect()
-        conn.execute(
-            """
-            INSERT INTO threads (id, creator_name, title, description, target_amount, deadline, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (thread_id, creator_name, title, description, target_amount, deadline, now_ms),
-        )
-        conn.commit()
-        conn.close()
+    with session_scope() as session:
+        session.add(thread)
 
     return jsonify({"ok": True, "id": thread_id}), 201
 
@@ -222,35 +231,24 @@ def create_pledge(thread_id: str) -> object:
     if not supporter_name or amount < 1:
         return jsonify({"error": "Dados invalidos para criar pledge."}), 400
 
-    with _db_lock:
-        conn = _connect()
-        thread_row = conn.execute(
-            "SELECT id, target_amount, deadline FROM threads WHERE id = ?",
-            (thread_id,),
-        ).fetchone()
-
-        if not thread_row:
-            conn.close()
+    with session_scope() as session:
+        thread = session.get(Thread, thread_id)
+        if not thread:
             return jsonify({"error": "Thread nao encontrada."}), 404
 
-        total = conn.execute(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM pledges WHERE thread_id = ?",
-            (thread_id,),
-        ).fetchone()["total"]
-
-        if _status(thread_row["target_amount"], total, thread_row["deadline"]) != "open":
-            conn.close()
+        pledged_total = sum(float(pledge.amount) for pledge in thread.pledges)
+        if _status(float(thread.target_amount), pledged_total, thread.deadline) != "open":
             return jsonify({"error": "Este desafio nao aceita novos pledges."}), 400
 
-        conn.execute(
-            """
-            INSERT INTO pledges (id, thread_id, supporter_name, amount, created_at)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (str(uuid.uuid4()), thread_id, supporter_name, amount, int(time.time() * 1000)),
+        session.add(
+            Pledge(
+                id=str(uuid.uuid4()),
+                thread_id=thread.id,
+                supporter_name=supporter_name,
+                amount=amount,
+                created_at=int(time.time() * 1000),
+            )
         )
-        conn.commit()
-        conn.close()
 
     return jsonify({"ok": True}), 201
 
