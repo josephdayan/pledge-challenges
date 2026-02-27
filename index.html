@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PledgeCity - Desafios por Meta</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Bricolage+Grotesque:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="glow glow-left"></div>
+    <div class="glow glow-right"></div>
+
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Plataforma de desafios por financiamento coletivo</p>
+        <h1>Pague para alguém cumprir uma missão real</h1>
+        <p class="subtitle">
+          Crie uma thread dizendo o que você faria por dinheiro. Se a comunidade
+          bater a meta, você fica comprometido a executar.
+        </p>
+      </div>
+      <div class="stats" id="global-stats"></div>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2>Criar nova thread</h2>
+        <form id="create-form">
+          <label>
+            Seu nome
+            <input type="text" name="creatorName" placeholder="Ex: João" required />
+          </label>
+
+          <label>
+            Título do desafio
+            <input
+              type="text"
+              name="title"
+              placeholder="Ex: Vou a pé para outra cidade"
+              required
+            />
+          </label>
+
+          <label>
+            Descrição
+            <textarea
+              name="description"
+              rows="4"
+              placeholder="Explique regras, distância, quando faria, etc."
+              required
+            ></textarea>
+          </label>
+
+          <div class="grid-2">
+            <label>
+              Meta (R$)
+              <input type="number" min="1" name="targetAmount" placeholder="1000" required />
+            </label>
+            <label>
+              Prazo
+              <input type="date" name="deadline" required />
+            </label>
+          </div>
+
+          <button type="submit">Publicar thread</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="row-between">
+          <h2>Threads abertas</h2>
+          <div class="filters">
+            <button class="chip active" data-filter="all">Todas</button>
+            <button class="chip" data-filter="open">Abertas</button>
+            <button class="chip" data-filter="funded">Bateram meta</button>
+            <button class="chip" data-filter="expired">Expiradas</button>
+          </div>
+        </div>
+        <div id="thread-list" class="thread-list"></div>
+      </section>
+    </main>
+
+    <template id="thread-template">
+      <article class="thread-item">
+        <div class="row-between">
+          <h3 class="thread-title"></h3>
+          <span class="badge"></span>
+        </div>
+        <p class="thread-description"></p>
+        <p class="thread-meta"></p>
+        <div class="progress-wrap">
+          <div class="progress"><span></span></div>
+          <p class="progress-text"></p>
+        </div>
+
+        <div class="pledge-box">
+          <h4>Fazer pledge</h4>
+          <form class="pledge-form">
+            <input type="text" name="supporterName" placeholder="Seu nome" required />
+            <input type="number" min="1" name="amount" placeholder="Valor (R$)" required />
+            <button type="submit">Contribuir</button>
+          </form>
+          <p class="pledge-hint">Quando a meta bater, o criador fica marcado como comprometido.</p>
+        </div>
+
+        <details>
+          <summary>Ver apoios</summary>
+          <ul class="pledge-list"></ul>
+        </details>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
