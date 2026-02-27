@@ -402,11 +402,13 @@ createForm.addEventListener("submit", async (event) => {
   const targetAmount = Number(form.get("targetAmount"));
   const deadlineDate = String(form.get("deadlineDate"));
   const deadlineHour = String(form.get("deadlineHour"));
+  const localDeadline = new Date(`${deadlineDate}T${deadlineHour}`);
+  const deadlineAt = localDeadline.toISOString();
 
   try {
     await api("/api/threads", {
       method: "POST",
-      body: JSON.stringify({ title, description, targetAmount, deadlineDate, deadlineHour })
+      body: JSON.stringify({ title, description, targetAmount, deadlineDate, deadlineHour, deadlineAt })
     });
     createForm.reset();
     await refreshAll();

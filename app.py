@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -128,7 +128,8 @@ def _status(thread: Thread, pledged_total: float) -> str:
     if pledged_total >= thread.target_amount:
         return "funded"
 
-    deadline_ts = datetime.fromisoformat(thread.deadline_at).timestamp()
+    deadline_raw = thread.deadline_at.replace("Z", "+00:00")
+    deadline_ts = datetime.fromisoformat(deadline_raw).timestamp()
     if time.time() > deadline_ts:
         return "expired"
 
@@ -359,6 +360,7 @@ def create_thread() -> object:
     token = _token_from_request()
     payload = request.get_json(silent=True) or {}
 
+    deadline_at_raw = str(payload.get("deadlineAt", "")).strip()
     title = str(payload.get("title", "")).strip()
     description = str(payload.get("description", "")).strip()
     deadline_date = str(payload.get("deadlineDate", "")).strip()
@@ -369,7 +371,19 @@ def create_thread() -> object:
     except (TypeError, ValueError):
         target_amount = 0
 
-    deadline = _parse_deadline(deadline_date, deadline_hour)
+    deadline: datetime | None = None
+    if deadline_at_raw:
+        try:
+            parsed = datetime.fromisoformat(deadline_at_raw.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            deadline = parsed.astimezone(timezone.utc)
+        except ValueError:
+            deadline = None
+    else:
+        parsed_local = _parse_deadline(deadline_date, deadline_hour)
+        if parsed_local:
+            deadline = parsed_local.replace(tzinfo=timezone.utc)
 
     if not title or not description or target_amount < 1 or not deadline:
         return jsonify({"error": "Dados invalidos para criar thread."}), 400
