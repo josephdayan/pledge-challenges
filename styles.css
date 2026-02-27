@@ -56,11 +56,11 @@ h4 {
 }
 
 .hero {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto 1.4rem;
   display: grid;
   gap: 1rem;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: 1.3fr 1fr;
   align-items: end;
 }
 
@@ -82,7 +82,6 @@ h1 {
 .subtitle {
   margin: 0.7rem 0 0;
   color: var(--muted);
-  max-width: 60ch;
 }
 
 .stats {
@@ -104,6 +103,7 @@ h1 {
   display: flex;
   justify-content: space-between;
   color: var(--muted);
+  gap: 1rem;
 }
 
 .stats strong {
@@ -112,11 +112,11 @@ h1 {
 }
 
 .layout {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   display: grid;
   gap: 1rem;
-  grid-template-columns: 390px 1fr;
+  grid-template-columns: 420px 1fr;
 }
 
 .card {
@@ -129,11 +129,17 @@ h1 {
 .card h2 {
   font-size: 1.18rem;
   margin-bottom: 0.8rem;
+  margin-top: 1.2rem;
+}
+
+.card h2:first-child {
+  margin-top: 0;
 }
 
 form {
   display: grid;
   gap: 0.8rem;
+  margin-bottom: 1rem;
 }
 
 label {
@@ -175,10 +181,20 @@ button {
   font-weight: 700;
 }
 
-.grid-2 {
+.secondary-btn {
+  background: #244a48;
+  color: #d8f6ef;
+}
+
+.danger-btn {
+  background: #5d2b2e;
+  color: #ffd8d4;
+}
+
+.grid-3 {
   display: grid;
   gap: 0.7rem;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .row-between {
@@ -223,6 +239,13 @@ button {
   font-size: 1.1rem;
 }
 
+.thread-author {
+  margin: 0.4rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #90f3ce;
+}
+
 .badge {
   font-size: 0.7rem;
   border-radius: 999px;
@@ -243,6 +266,11 @@ button {
 .badge-expired {
   background: #503234;
   color: #ffc9c2;
+}
+
+.badge-commit {
+  background: #4b4423;
+  color: #ffe39e;
 }
 
 .thread-description {
@@ -277,6 +305,13 @@ button {
   color: #b6d2cc;
 }
 
+.thread-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.7rem 0;
+  flex-wrap: wrap;
+}
+
 .pledge-box {
   background: #102223;
   border-radius: 12px;
@@ -290,7 +325,7 @@ button {
 
 .pledge-form {
   display: grid;
-  grid-template-columns: 1fr 120px auto;
+  grid-template-columns: 1fr auto;
   gap: 0.45rem;
 }
 
@@ -324,9 +359,33 @@ summary {
   color: #93b5b0;
 }
 
-@media (max-width: 950px) {
+.auth-box {
+  background: #102525;
+  border: 1px solid #2f5957;
+  border-radius: 12px;
+  padding: 0.8rem;
+  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.auth-box p {
+  margin: 0;
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+@media (max-width: 1100px) {
   .hero,
   .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-3 {
     grid-template-columns: 1fr;
   }
 

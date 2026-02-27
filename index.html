@@ -19,10 +19,9 @@
     <header class="hero">
       <div>
         <p class="eyebrow">Plataforma de desafios por financiamento coletivo</p>
-        <h1>Pague para alguém cumprir uma missão real</h1>
+        <h1>Pague para alguem cumprir uma missao real</h1>
         <p class="subtitle">
-          Crie uma thread dizendo o que você faria por dinheiro. Se a comunidade
-          bater a meta, você fica comprometido a executar.
+          Crie threads, receba pledges, desafie usuarios e negocie counteroffers.
         </p>
       </div>
       <div class="stats" id="global-stats"></div>
@@ -30,59 +29,81 @@
 
     <main class="layout">
       <section class="card">
+        <h2>Conta</h2>
+        <div id="auth-view"></div>
+
         <h2>Criar nova thread</h2>
         <form id="create-form">
           <label>
-            Seu nome
-            <input type="text" name="creatorName" placeholder="Ex: João" required />
+            Titulo do desafio
+            <input type="text" name="title" placeholder="Ex: Vou a pe para outra cidade" required />
           </label>
 
           <label>
-            Título do desafio
-            <input
-              type="text"
-              name="title"
-              placeholder="Ex: Vou a pé para outra cidade"
-              required
-            />
-          </label>
-
-          <label>
-            Descrição
+            Descricao
             <textarea
               name="description"
               rows="4"
-              placeholder="Explique regras, distância, quando faria, etc."
+              placeholder="Explique regras, distancia, quando faria, etc."
               required
             ></textarea>
           </label>
 
-          <div class="grid-2">
+          <div class="grid-3">
             <label>
               Meta (R$)
               <input type="number" min="1" name="targetAmount" placeholder="1000" required />
             </label>
             <label>
-              Prazo
-              <input type="date" name="deadline" required />
+              Data limite
+              <input type="date" name="deadlineDate" required />
+            </label>
+            <label>
+              Hora limite
+              <input type="time" name="deadlineHour" required />
             </label>
           </div>
 
           <button type="submit">Publicar thread</button>
         </form>
+
+        <h2>Desafiar usuario</h2>
+        <form id="challenge-form">
+          <label>
+            Username da pessoa
+            <input type="text" name="challengedUsername" placeholder="ex: amigo123" required />
+          </label>
+          <label>
+            Titulo do desafio
+            <input type="text" name="title" placeholder="Ex: Caminhar 20km" required />
+          </label>
+          <label>
+            Descricao
+            <textarea name="description" rows="3" placeholder="Condicoes do desafio" required></textarea>
+          </label>
+          <label>
+            Quanto voce oferece (R$)
+            <input type="number" min="1" name="offeredAmount" placeholder="1000" required />
+          </label>
+          <button type="submit">Enviar desafio</button>
+        </form>
       </section>
 
       <section class="card">
         <div class="row-between">
-          <h2>Threads abertas</h2>
+          <h2>Threads</h2>
           <div class="filters">
             <button class="chip active" data-filter="all">Todas</button>
             <button class="chip" data-filter="open">Abertas</button>
-            <button class="chip" data-filter="funded">Bateram meta</button>
+            <button class="chip" data-filter="funded">Meta batida</button>
+            <button class="chip" data-filter="committed_current">Commit parcial</button>
             <button class="chip" data-filter="expired">Expiradas</button>
           </div>
         </div>
         <div id="thread-list" class="thread-list"></div>
+
+        <h2>Desafios recebidos/enviados</h2>
+        <div id="challenge-list" class="thread-list"></div>
       </section>
     </main>
 
@@ -92,6 +113,8 @@
           <h3 class="thread-title"></h3>
           <span class="badge"></span>
         </div>
+
+        <p class="thread-author"></p>
         <p class="thread-description"></p>
         <p class="thread-meta"></p>
         <div class="progress-wrap">
@@ -99,20 +122,33 @@
           <p class="progress-text"></p>
         </div>
 
+        <div class="thread-actions"></div>
+
         <div class="pledge-box">
           <h4>Fazer pledge</h4>
           <form class="pledge-form">
-            <input type="text" name="supporterName" placeholder="Seu nome" required />
             <input type="number" min="1" name="amount" placeholder="Valor (R$)" required />
             <button type="submit">Contribuir</button>
           </form>
-          <p class="pledge-hint">Quando a meta bater, o criador fica marcado como comprometido.</p>
+          <p class="pledge-hint">Pledge usa automaticamente seu username logado.</p>
         </div>
 
         <details>
           <summary>Ver apoios</summary>
           <ul class="pledge-list"></ul>
         </details>
+      </article>
+    </template>
+
+    <template id="challenge-template">
+      <article class="thread-item">
+        <div class="row-between">
+          <h3 class="challenge-title"></h3>
+          <span class="badge"></span>
+        </div>
+        <p class="thread-description"></p>
+        <p class="thread-meta"></p>
+        <div class="thread-actions"></div>
       </article>
     </template>
 

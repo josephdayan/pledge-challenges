@@ -1,6 +1,7 @@
 # PledgeCity (versao online)
 
 Agora o projeto roda com backend Flask e suporta banco persistente via `DATABASE_URL` (Postgres recomendado no Render).
+Inclui login/senha, controle por username, desafios com counteroffer e permissao de apagar por dono/admin.
 
 ## Rodar localmente
 
@@ -52,3 +53,4 @@ Pronto: esse link publico pode ser enviado para outras pessoas entrarem e usarem
 - No plano gratis do Render, a aplicacao pode "dormir" e demorar alguns segundos no primeiro acesso.
 - Em producao no Render, os dados ficam persistidos no Postgres configurado no `render.yaml`.
 - Ainda nao ha pagamentos reais; pledge aqui e compromisso social.
+- Admin para apagar qualquer thread: username definido em `ADMIN_USERNAME` (padrao: `josephdayan`).
