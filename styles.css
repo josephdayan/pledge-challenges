@@ -1,12 +1,12 @@
 :root {
-  --bg: #0e1f1f;
-  --panel: #133030;
-  --panel2: #173737;
-  --text: #ecfffb;
-  --muted: #9fc3bc;
-  --primary: #35e0a7;
-  --danger: #e07474;
-  --warning: #f2ce62;
+  --bg: #eef5ff;
+  --panel: #ffffff;
+  --panel2: #f6faff;
+  --text: #0e2748;
+  --muted: #5a7291;
+  --primary: #2b73ff;
+  --danger: #dd5a6f;
+  --warning: #edc757;
 }
 
 * {
@@ -17,9 +17,8 @@ body {
   margin: 0;
   font-family: "Space Grotesk", sans-serif;
   color: var(--text);
-  background: radial-gradient(circle at 20% 0%, #204947, transparent 30%),
-    radial-gradient(circle at 90% 100%, #1d3c3b, transparent 28%),
-    var(--bg);
+  background: radial-gradient(circle at 15% -10%, #dbe9ff, transparent 40%),
+    radial-gradient(circle at 110% 120%, #d8ecff, transparent 35%), var(--bg);
   padding: 1.2rem;
 }
 
@@ -70,7 +69,8 @@ h1 {
 .auth-box {
   background: linear-gradient(130deg, var(--panel), var(--panel2));
   border-radius: 14px;
-  border: 1px solid #285553;
+  border: 1px solid #d7e6ff;
+  box-shadow: 0 8px 28px rgba(27, 85, 186, 0.08);
 }
 
 .stats {
@@ -139,9 +139,9 @@ input,
 textarea,
 select {
   width: 100%;
-  background: #0d2524;
+  background: #ffffff;
   color: var(--text);
-  border: 1px solid #2e5f5a;
+  border: 1px solid #c8dbff;
   border-radius: 11px;
   padding: 0.62rem;
 }
@@ -149,7 +149,7 @@ select {
 input:focus,
 textarea:focus,
 select:focus {
-  outline: 2px solid #34e6ab;
+  outline: 2px solid #77a9ff;
   border-color: transparent;
 }
 
@@ -159,18 +159,18 @@ button {
   padding: 0.6rem 0.8rem;
   font-weight: 700;
   cursor: pointer;
-  background: linear-gradient(110deg, #2ddfa4, #22c98f);
-  color: #04231a;
+  background: linear-gradient(110deg, #4086ff, #2b73ff);
+  color: #f5f9ff;
 }
 
 .secondary-btn {
-  background: #274b49;
-  color: #d7f8ef;
+  background: #dbe8ff;
+  color: #204e9e;
 }
 
 .danger-btn {
-  background: #602f33;
-  color: #ffd7d7;
+  background: #ffe4ea;
+  color: #9b3043;
 }
 
 .grid-2 {
@@ -193,24 +193,24 @@ button {
 }
 
 .tab {
-  background: #234847;
-  color: var(--muted);
+  background: #e6efff;
+  color: #4b6385;
   border-radius: 999px;
   padding: 0.45rem 0.7rem;
 }
 
 .tab.active {
-  background: #22d39a;
-  color: #032116;
-}
-
-.hidden {
-  display: none;
+  background: #2b73ff;
+  color: #f3f7ff;
 }
 
 .tab-panel {
   display: grid;
   gap: 0.8rem;
+}
+
+.tab-panel.hidden {
+  display: none;
 }
 
 .row-between {
@@ -232,7 +232,7 @@ button {
 
 .author {
   font-size: 1.1rem;
-  color: #91f7d0;
+  color: #1f63d9;
   font-weight: 700;
 }
 
@@ -248,7 +248,7 @@ button {
 .progress {
   width: 100%;
   height: 10px;
-  background: #081717;
+  background: #e5efff;
   border-radius: 99px;
   overflow: hidden;
 }
@@ -256,7 +256,7 @@ button {
 .progress span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #36e3ab, #f3d768);
+  background: linear-gradient(90deg, #2b73ff, #6ba2ff);
 }
 
 .progress-text {
@@ -272,23 +272,23 @@ button {
 }
 
 .badge-open {
-  background: #2c5554;
-  color: #b5d4cd;
+  background: #e3edff;
+  color: #45638f;
 }
 
 .badge-funded {
-  background: #1e4d3d;
-  color: #94ffd3;
+  background: #d9ebff;
+  color: #1155c9;
 }
 
 .badge-expired {
-  background: #5f3031;
-  color: #ffd2cc;
+  background: #ffe5e9;
+  color: #ac3e4f;
 }
 
 .badge-commit {
-  background: #534920;
-  color: #ffe4a6;
+  background: #fff3d5;
+  color: #8f6d17;
 }
 
 .actions,
@@ -305,7 +305,7 @@ button {
 
 details summary {
   cursor: pointer;
-  color: #9fd0c6;
+  color: #55749d;
 }
 
 .list {
