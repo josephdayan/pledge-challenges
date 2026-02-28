@@ -31,6 +31,9 @@
         <div id="balance-view" class="stack"></div>
 
         <h2>Grupos</h2>
+        <label>Grupo ativo
+          <select id="active-group-select"></select>
+        </label>
         <form id="group-create-form">
           <label>Nome do grupo<input type="text" name="name" required /></label>
           <label>Convidar users (separe por virgula)<input type="text" name="invites" placeholder="ana,rafa,daniel" /></label>
@@ -153,6 +156,14 @@
           <summary>Ver pledges</summary>
           <ul class="list"></ul>
         </details>
+        <div class="comments">
+          <h4>Comentarios</h4>
+          <form class="comment-form inline-form">
+            <input type="text" name="body" placeholder="Escreva um comentario..." required />
+            <button type="submit">Comentar</button>
+          </form>
+          <ul class="comment-list"></ul>
+        </div>
       </article>
     </template>
 
@@ -182,6 +193,14 @@
             <ul class="pledges"></ul>
           </div>
         </details>
+        <div class="comments">
+          <h4>Comentarios</h4>
+          <form class="comment-form inline-form">
+            <input type="text" name="body" placeholder="Escreva um comentario..." required />
+            <button type="submit">Comentar</button>
+          </form>
+          <ul class="comment-list"></ul>
+        </div>
       </article>
     </template>
 

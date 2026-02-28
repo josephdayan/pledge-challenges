@@ -1,4 +1,5 @@
 let token = localStorage.getItem("pledgecity_token") || "";
+let activeGroupId = localStorage.getItem("pledgecity_active_group") || "";
 let me = null;
 let groups = [];
 let threads = [];
@@ -8,6 +9,7 @@ let balance = { owes: 0, toReceive: 0, entries: [] };
 const authView = document.getElementById("auth-view");
 const balanceView = document.getElementById("balance-view");
 const groupsView = document.getElementById("groups-view");
+const activeGroupSelect = document.getElementById("active-group-select");
 const statsView = document.getElementById("global-stats");
 const threadList = document.getElementById("thread-list");
 const reverseList = document.getElementById("reverse-list");
@@ -46,10 +48,6 @@ async function api(path, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Erro na API");
   return data;
-}
-
-function activeGroupOptions() {
-  return groups.filter((g) => g.members.includes(me?.username));
 }
 
 function findGroupById(id) {
@@ -149,16 +147,12 @@ function renderBalance() {
     return;
   }
 
-  const items = balance.entries || [];
-  const rows = items
+  const rows = (balance.entries || [])
     .map((entry) => {
       const action = entry.canDeclareReceived
         ? `<button class="secondary-btn" data-receive="${entry.id}" type="button">Declarar recebido</button>`
         : "";
-      return `<li>
-        <strong>${money(entry.amount)}</strong> | ${entry.payerUsername} -> ${entry.payeeUsername} | ${entry.dealType} | ${entry.status}
-        ${action}
-      </li>`;
+      return `<li><strong>${money(entry.amount)}</strong> | ${entry.payerUsername} -> ${entry.payeeUsername} | ${entry.dealType} | ${entry.status} ${action}</li>`;
     })
     .join("");
 
@@ -182,6 +176,23 @@ function renderBalance() {
   });
 }
 
+function hydrateGroupSelector() {
+  if (!me || !groups.length) {
+    activeGroupSelect.innerHTML = `<option value="">Sem grupo</option>`;
+    activeGroupId = "";
+    localStorage.removeItem("pledgecity_active_group");
+    return;
+  }
+
+  if (!groups.some((g) => g.id === activeGroupId)) {
+    activeGroupId = groups[0].id;
+  }
+
+  activeGroupSelect.innerHTML = groups.map((g) => `<option value="${g.id}">${g.name}</option>`).join("");
+  activeGroupSelect.value = activeGroupId;
+  localStorage.setItem("pledgecity_active_group", activeGroupId);
+}
+
 function renderGroups() {
   if (!me) {
     groupsView.innerHTML = `<p class="empty">Faca login para usar grupos.</p>`;
@@ -202,10 +213,7 @@ function renderGroups() {
             <h3>${g.name}</h3>
             <p class="meta">Dono: @${g.ownerUsername}</p>
             <p class="meta">Membros: ${g.members.map((m) => "@" + m).join(", ") || "-"}</p>
-            <details>
-              <summary>Pendentes</summary>
-              <ul class="list">${pendingHtml || "<li>Sem pendencias.</li>"}</ul>
-            </details>
+            <details><summary>Pendentes</summary><ul class="list">${pendingHtml || "<li>Sem pendencias.</li>"}</ul></details>
             ${
               g.isOwner
                 ? `<form class="inline-form" data-invite="${g.id}"><input name="username" placeholder="convidar username" required/><button type="submit">Convidar</button></form>`
@@ -220,10 +228,7 @@ function renderGroups() {
     btn.onclick = async () => {
       const [groupId, membershipId] = String(btn.dataset.approve).split(":");
       try {
-        await api(`/api/groups/${groupId}/approve`, {
-          method: "POST",
-          body: JSON.stringify({ membershipId })
-        });
+        await api(`/api/groups/${groupId}/approve`, { method: "POST", body: JSON.stringify({ membershipId }) });
         await refresh();
       } catch (err) {
         alert(err.message);
@@ -251,29 +256,29 @@ function renderGroups() {
 }
 
 function hydrateAudienceControls() {
-  const groupOptions = activeGroupOptions();
-
+  const groupOptions = groups;
   document.querySelectorAll(".group-select").forEach((select) => {
-    const prev = select.value;
+    const prev = select.value || activeGroupId;
     select.innerHTML = `<option value="">Selecione...</option>${groupOptions
       .map((g) => `<option value="${g.id}">${g.name}</option>`)
       .join("")}`;
-    if (prev) select.value = prev;
+    if (prev && groupOptions.some((g) => g.id === prev)) select.value = prev;
   });
 
   const updateTargets = (form) => {
     const gSel = form.querySelector(".group-select");
     const tSel = form.querySelector(".targets-select");
-    const mode = form.querySelector(".audience-mode")?.value || "open";
-    const group = findGroupById(gSel.value);
+    const mode = form.querySelector(".audience-mode")?.value || "group";
+    const group = findGroupById(gSel.value || activeGroupId);
     const members = (group?.members || []).filter((u) => u !== me?.username);
     tSel.innerHTML = members.map((u) => `<option value="${u}">${u}</option>`).join("");
-    gSel.disabled = mode === "open";
     tSel.disabled = mode !== "specific";
   };
 
   [threadForm, reverseForm].forEach((form) => {
     if (!form) return;
+    const gSel = form.querySelector(".group-select");
+    if (!gSel.value && activeGroupId) gSel.value = activeGroupId;
     form.querySelector(".group-select").onchange = () => updateTargets(form);
     form.querySelector(".audience-mode").onchange = () => updateTargets(form);
     updateTargets(form);
@@ -288,14 +293,17 @@ function threadBadge(status) {
 }
 
 function reverseBadge(status) {
-  if (status === "closed") return ["Fechado", "badge-funded"];
-  return ["Aberto", "badge-open"];
+  return status === "closed" ? ["Fechado", "badge-funded"] : ["Aberto", "badge-open"];
 }
 
 function renderThreads() {
   threadList.innerHTML = "";
+  if (!activeGroupId) {
+    threadList.innerHTML = `<p class="empty">Selecione ou crie um grupo para ver missoes.</p>`;
+    return;
+  }
   if (!threads.length) {
-    threadList.innerHTML = `<p class="empty">Sem missoes ainda.</p>`;
+    threadList.innerHTML = `<p class="empty">Sem missoes neste grupo.</p>`;
     return;
   }
 
@@ -309,9 +317,9 @@ function renderThreads() {
     node.querySelector(".badge").classList.add(badgeClass);
     node.querySelector(".author").textContent = `@${item.creatorUsername}`;
     node.querySelector(".desc").textContent = item.description;
-    node.querySelector(".meta").textContent = `Meta ${money(item.targetAmount)} | Prazo ${dtText(item.deadlineAt)} | Escopo ${item.audienceMode}${
-      item.groupName ? ` | Grupo ${item.groupName}` : ""
-    }${item.targets?.length ? ` | Alvos: ${item.targets.map((x) => "@" + x).join(", ")}` : ""}`;
+    node.querySelector(".meta").textContent = `Meta ${money(item.targetAmount)} | Prazo ${dtText(item.deadlineAt)}${
+      item.targets?.length ? ` | Alvos: ${item.targets.map((x) => "@" + x).join(", ")}` : ""
+    }`;
 
     node.querySelector(".progress span").style.width = `${progress}%`;
     node.querySelector(".progress-text").textContent = `${money(item.pledgedTotal)} de ${money(item.targetAmount)} (${progress.toFixed(
@@ -321,6 +329,31 @@ function renderThreads() {
     node.querySelector(".list").innerHTML =
       item.pledges.map((p) => `<li>@${p.supporterUsername} pledged ${money(p.amount)} em ${relDate(p.createdAt)}</li>`).join("") ||
       "<li>Sem pledges.</li>";
+
+    const commentList = node.querySelector(".comment-list");
+    commentList.innerHTML =
+      (item.comments || [])
+        .map((c) => `<li>@${c.username}: ${c.body} <span class="meta">(${relDate(c.createdAt)})</span></li>`)
+        .join("") || "<li>Sem comentarios.</li>";
+
+    const commentForm = node.querySelector(".comment-form");
+    if (!me) {
+      commentForm.replaceWith(document.createElement("div"));
+    } else {
+      commentForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(commentForm);
+        const body = String(fd.get("body") || "").trim();
+        if (!body) return;
+        try {
+          await api(`/api/threads/${item.id}/comments`, { method: "POST", body: JSON.stringify({ body }) });
+          commentForm.reset();
+          await refresh();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
 
     const actions = node.querySelector(".actions");
     if (item.canCommitCurrent) {
@@ -380,8 +413,12 @@ function renderThreads() {
 
 function renderReverse() {
   reverseList.innerHTML = "";
+  if (!activeGroupId) {
+    reverseList.innerHTML = `<p class="empty">Selecione ou crie um grupo para ver pedidos.</p>`;
+    return;
+  }
   if (!reverseRequests.length) {
-    reverseList.innerHTML = `<p class="empty">Sem pedidos ainda.</p>`;
+    reverseList.innerHTML = `<p class="empty">Sem pedidos neste grupo.</p>`;
     return;
   }
 
@@ -394,9 +431,9 @@ function renderReverse() {
     node.querySelector(".badge").classList.add(badgeClass);
     node.querySelector(".author").textContent = `Criado por @${item.creatorUsername}`;
     node.querySelector(".desc").textContent = item.description;
-    node.querySelector(".meta").textContent = `Escopo ${item.audienceMode}${item.groupName ? ` | Grupo ${item.groupName}` : ""}${
-      item.targets?.length ? ` | Alvos: ${item.targets.map((x) => "@" + x).join(", ")}` : ""
-    }`;
+    node.querySelector(".meta").textContent = item.targets?.length
+      ? `Alvos: ${item.targets.map((x) => "@" + x).join(", ")}`
+      : "Grupo inteiro";
 
     const low = item.lowestBid;
     node.querySelector(".progress-text").textContent = `Menor oferta atual: ${
@@ -409,6 +446,31 @@ function renderReverse() {
     node.querySelector(".pledges").innerHTML =
       item.pledges.map((p) => `<li>@${p.supporterUsername} pledged ${money(p.amount)}</li>`).join("") ||
       "<li>Sem pledges.</li>";
+
+    const commentList = node.querySelector(".comment-list");
+    commentList.innerHTML =
+      (item.comments || [])
+        .map((c) => `<li>@${c.username}: ${c.body} <span class="meta">(${relDate(c.createdAt)})</span></li>`)
+        .join("") || "<li>Sem comentarios.</li>";
+
+    const commentForm = node.querySelector(".comment-form");
+    if (!me) {
+      commentForm.replaceWith(document.createElement("div"));
+    } else {
+      commentForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(commentForm);
+        const body = String(fd.get("body") || "").trim();
+        if (!body) return;
+        try {
+          await api(`/api/reverse/${item.id}/comments`, { method: "POST", body: JSON.stringify({ body }) });
+          commentForm.reset();
+          await refresh();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
 
     const bidForm = node.querySelector(".bid-form");
     const pledgeForm = node.querySelectorAll(".pledge-form")[0];
@@ -463,22 +525,30 @@ async function refresh() {
     }
 
     if (me) {
-      const [g, t, r, b] = await Promise.all([
-        api("/api/groups"),
-        api("/api/threads"),
-        api("/api/reverse"),
-        api("/api/balance")
-      ]);
+      const [g, b] = await Promise.all([api("/api/groups"), api("/api/balance")]);
       groups = g.groups || [];
-      threads = t.threads || [];
-      reverseRequests = r.requests || [];
       balance = b;
+      hydrateGroupSelector();
+
+      if (activeGroupId) {
+        const [t, r] = await Promise.all([
+          api(`/api/threads?groupId=${encodeURIComponent(activeGroupId)}`),
+          api(`/api/reverse?groupId=${encodeURIComponent(activeGroupId)}`)
+        ]);
+        threads = t.threads || [];
+        reverseRequests = r.requests || [];
+      } else {
+        threads = [];
+        reverseRequests = [];
+      }
     } else {
-      const [t, r] = await Promise.all([api("/api/threads"), api("/api/reverse")]);
       groups = [];
-      threads = t.threads || [];
-      reverseRequests = r.requests || [];
+      threads = [];
+      reverseRequests = [];
       balance = { owes: 0, toReceive: 0, entries: [] };
+      activeGroupId = "";
+      localStorage.removeItem("pledgecity_active_group");
+      hydrateGroupSelector();
     }
 
     renderAuth();
@@ -503,8 +573,8 @@ threadForm.onsubmit = async (e) => {
     targetAmount: Number(fd.get("targetAmount") || 0),
     deadlineDate: String(fd.get("deadlineDate") || ""),
     deadlineHour: String(fd.get("deadlineHour") || ""),
-    audienceMode: String(fd.get("audienceMode") || "open"),
-    groupId: String(fd.get("groupId") || ""),
+    audienceMode: String(fd.get("audienceMode") || "group"),
+    groupId: String(fd.get("groupId") || activeGroupId || ""),
     targetUsernames: selectedUsernamesFromMulti(threadForm.querySelector(".targets-select"))
   };
 
@@ -527,7 +597,7 @@ reverseForm.onsubmit = async (e) => {
     description: String(fd.get("description") || "").trim(),
     seedAmount: Number(fd.get("seedAmount") || 0),
     audienceMode: String(fd.get("audienceMode") || "group"),
-    groupId: String(fd.get("groupId") || ""),
+    groupId: String(fd.get("groupId") || activeGroupId || ""),
     targetUsernames: selectedUsernamesFromMulti(reverseForm.querySelector(".targets-select"))
   };
 
@@ -560,6 +630,13 @@ groupCreateForm.onsubmit = async (e) => {
   } catch (err) {
     alert(err.message);
   }
+};
+
+activeGroupSelect.onchange = async () => {
+  activeGroupId = activeGroupSelect.value || "";
+  if (activeGroupId) localStorage.setItem("pledgecity_active_group", activeGroupId);
+  else localStorage.removeItem("pledgecity_active_group");
+  await refresh();
 };
 
 document.querySelectorAll(".tab").forEach((tab) => {

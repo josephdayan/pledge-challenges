@@ -317,6 +317,26 @@ details summary {
   font-size: 0.86rem;
 }
 
+.comments {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.comments h4 {
+  font-size: 0.9rem;
+  color: #436591;
+}
+
+.comment-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.25rem;
+  color: #5f7ea2;
+  font-size: 0.84rem;
+}
+
 .dual-lists {
   display: grid;
   gap: 0.7rem;
