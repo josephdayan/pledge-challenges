@@ -1,56 +1,38 @@
-# PledgeCity (versao online)
+# PledgeCity
 
-Agora o projeto roda com backend Flask e suporta banco persistente via `DATABASE_URL` (Postgres recomendado no Render).
-Inclui login/senha, controle por username, desafios com counteroffer e permissao de apagar por dono/admin.
+Plataforma com duas secoes:
+
+- `Missoes Oferecidas`: usuario publica o que faria por uma meta e recebe pledges.
+- `Pedidos em Leilao Reverso`: usuario publica o que quer que seja feito, pessoas ofertam por quanto fariam, e o menor valor predomina.
+
+## Recursos principais
+
+- Login e senha por usuario.
+- Pledges e posts com username do login.
+- Prazo com data + hora em horario de Brasilia (`America/Sao_Paulo`).
+- Commit parcial na missao oferecida (`commit no valor atual`).
+- Grupos com dono, convites e aprovacao pelo criador.
+- Alcance por `aberto`, `grupo inteiro` ou `usuarios especificos`.
+- Saldo automatico:
+  - `Voce deve`
+  - `Voce recebe`
+  - `Declarar recebido` (somente quem recebe pode encerrar o item).
+- Termos e condicoes na interface.
+
+## Banco e persistencia
+
+- Em producao, use Postgres via `DATABASE_URL`.
+- No Render, use o `render.yaml` com web service + banco.
+- Dados nao devem ser perdidos em restart/deploy normal quando o Postgres estiver ativo.
 
 ## Rodar localmente
 
-1. Abra terminal na pasta:
-   - `cd /Applications/pledge-challenges`
-2. Crie ambiente virtual:
-   - `python3 -m venv .venv`
-3. Ative:
-   - `source .venv/bin/activate`
-4. Instale dependencias:
-   - `pip install -r requirements.txt`
-5. Rode o app:
-   - `python3 app.py`
-6. Abra:
-   - `http://127.0.0.1:4173`
+```bash
+cd /Applications/pledge-challenges
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 app.py
+```
 
-## Deploy no Render com banco persistente
-
-1. Suba esta pasta para um repositório no GitHub.
-2. Entre no Render: [https://render.com](https://render.com)
-3. Clique em `New +` > `Blueprint` e selecione seu repo.
-4. O Render vai ler o arquivo `render.yaml` automaticamente e criar:
-   - 1 Web Service (`pledgecity`)
-   - 1 Postgres (`pledgecity-db`)
-5. Conclua a criacao e aguarde o deploy. Ele vai gerar uma URL publica tipo:
-   - `https://pledgecity.onrender.com`
-
-Pronto: esse link publico pode ser enviado para outras pessoas entrarem e usarem juntos.
-
-## Deploy simples no Railway (alternativa ao Render)
-
-1. Suba o projeto no GitHub.
-2. Entre em [https://railway.app](https://railway.app) e faca login com GitHub.
-3. Clique em `New Project` > `Deploy from GitHub repo`.
-4. Escolha `pledge-challenges`.
-5. Railway detecta Python e sobe automaticamente.
-6. Em `Settings` > `Networking`, gere dominio publico.
-7. Abra a URL publica e compartilhe.
-
-## Estrutura
-
-- `app.py`: backend (API + servidor web) com SQLAlchemy
-- `index.html`, `styles.css`, `app.js`: frontend
-- `data.db`: fallback local para desenvolvimento (quando `DATABASE_URL` nao esta setada)
-- `render.yaml`: configuracao de deploy
-
-## Observacoes importantes
-
-- No plano gratis do Render, a aplicacao pode "dormir" e demorar alguns segundos no primeiro acesso.
-- Em producao no Render, os dados ficam persistidos no Postgres configurado no `render.yaml`.
-- Ainda nao ha pagamentos reais; pledge aqui e compromisso social.
-- Admin para apagar qualquer thread: username definido em `ADMIN_USERNAME` (padrao: `josephdayan`).
+Abra `http://127.0.0.1:4173`.

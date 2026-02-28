@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PledgeCity - Desafios por Meta</title>
+    <title>PledgeCity</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,142 +13,175 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="glow glow-left"></div>
-    <div class="glow glow-right"></div>
-
     <header class="hero">
       <div>
-        <p class="eyebrow">Plataforma de desafios por financiamento coletivo</p>
-        <h1>Pague para alguem cumprir uma missao real</h1>
-        <p class="subtitle">
-          Crie threads, receba pledges, desafie usuarios e negocie counteroffers.
-        </p>
+        <p class="eyebrow">PledgeCity</p>
+        <h1>Compromissos com dinheiro, regra e responsabilidade</h1>
+        <p class="subtitle">Duas frentes: quem oferece o que faria por uma meta e quem cria pedidos em leilao inverso.</p>
       </div>
       <div class="stats" id="global-stats"></div>
     </header>
 
     <main class="layout">
-      <section class="card">
+      <aside class="card" id="side-panel">
         <h2>Conta</h2>
         <div id="auth-view"></div>
 
-        <h2>Criar nova thread</h2>
-        <form id="create-form">
-          <label>
-            Titulo do desafio
-            <input type="text" name="title" placeholder="Ex: Vou a pe para outra cidade" required />
-          </label>
+        <h2>Meu saldo</h2>
+        <div id="balance-view" class="stack"></div>
 
-          <label>
-            Descricao
-            <textarea
-              name="description"
-              rows="4"
-              placeholder="Explique regras, distancia, quando faria, etc."
-              required
-            ></textarea>
-          </label>
-
-          <div class="grid-3">
-            <label>
-              Meta (R$)
-              <input type="number" min="1" name="targetAmount" placeholder="1000" required />
-            </label>
-            <label>
-              Data limite
-              <input type="date" name="deadlineDate" required />
-            </label>
-            <label>
-              Hora limite
-              <input type="time" name="deadlineHour" required />
-            </label>
-          </div>
-
-          <button type="submit">Publicar thread</button>
+        <h2>Grupos</h2>
+        <form id="group-create-form">
+          <label>Nome do grupo<input type="text" name="name" required /></label>
+          <label>Convidar users (separe por virgula)<input type="text" name="invites" placeholder="ana,rafa,daniel" /></label>
+          <button type="submit">Criar grupo</button>
         </form>
-
-        <h2>Desafiar usuario</h2>
-        <form id="challenge-form">
-          <label>
-            Username da pessoa
-            <input type="text" name="challengedUsername" placeholder="ex: amigo123" required />
-          </label>
-          <label>
-            Titulo do desafio
-            <input type="text" name="title" placeholder="Ex: Caminhar 20km" required />
-          </label>
-          <label>
-            Descricao
-            <textarea name="description" rows="3" placeholder="Condicoes do desafio" required></textarea>
-          </label>
-          <label>
-            Quanto voce oferece (R$)
-            <input type="number" min="1" name="offeredAmount" placeholder="1000" required />
-          </label>
-          <button type="submit">Enviar desafio</button>
-        </form>
-      </section>
+        <div id="groups-view" class="stack"></div>
+      </aside>
 
       <section class="card">
-        <div class="row-between">
-          <h2>Threads</h2>
-          <div class="filters">
-            <button class="chip active" data-filter="all">Todas</button>
-            <button class="chip" data-filter="open">Abertas</button>
-            <button class="chip" data-filter="funded">Meta batida</button>
-            <button class="chip" data-filter="committed_current">Commit parcial</button>
-            <button class="chip" data-filter="expired">Expiradas</button>
-          </div>
+        <div class="tabs">
+          <button class="tab active" data-tab="threads">Missoes Oferecidas</button>
+          <button class="tab" data-tab="reverse">Pedidos em Leilao Reverso</button>
+          <button class="tab" data-tab="terms">Termos e Condicoes</button>
         </div>
-        <div id="thread-list" class="thread-list"></div>
 
-        <h2>Desafios recebidos/enviados</h2>
-        <div id="challenge-list" class="thread-list"></div>
+        <section class="tab-panel" id="tab-threads">
+          <h2>Criar missao oferecida</h2>
+          <form id="thread-form">
+            <label>Titulo<input type="text" name="title" required /></label>
+            <label>Descricao<textarea name="description" rows="3" required></textarea></label>
+            <div class="grid-3">
+              <label>Meta (R$)<input type="number" min="1" name="targetAmount" required /></label>
+              <label>Data limite<input type="date" name="deadlineDate" required /></label>
+              <label>Hora limite (Brasilia)<input type="time" name="deadlineHour" required /></label>
+            </div>
+
+            <div class="grid-3">
+              <label>
+                Alcance
+                <select name="audienceMode" class="audience-mode">
+                  <option value="open">Aberto</option>
+                  <option value="group">Grupo inteiro</option>
+                  <option value="specific">Usuarios especificos</option>
+                </select>
+              </label>
+              <label>
+                Grupo
+                <select name="groupId" class="group-select"></select>
+              </label>
+              <label>
+                Alvos (usernames)
+                <select name="targets" class="targets-select" multiple></select>
+              </label>
+            </div>
+
+            <button type="submit">Publicar missao</button>
+          </form>
+
+          <h2>Lista de missoes</h2>
+          <div id="thread-list" class="stack"></div>
+        </section>
+
+        <section class="tab-panel hidden" id="tab-reverse">
+          <h2>Criar pedido em leilao inverso</h2>
+          <form id="reverse-form">
+            <label>Titulo do pedido<input type="text" name="title" required /></label>
+            <label>Descricao<textarea name="description" rows="3" required></textarea></label>
+            <div class="grid-2">
+              <label>Seu pledge inicial (R$)<input type="number" min="0" name="seedAmount" value="0" required /></label>
+              <label>
+                Alcance
+                <select name="audienceMode" class="audience-mode">
+                  <option value="group">Grupo inteiro</option>
+                  <option value="specific">Usuarios especificos</option>
+                  <option value="open">Aberto</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="grid-2">
+              <label>
+                Grupo
+                <select name="groupId" class="group-select"></select>
+              </label>
+              <label>
+                Alvos (usernames)
+                <select name="targets" class="targets-select" multiple></select>
+              </label>
+            </div>
+
+            <button type="submit">Criar pedido</button>
+          </form>
+
+          <h2>Pedidos ativos/fechados</h2>
+          <div id="reverse-list" class="stack"></div>
+        </section>
+
+        <section class="tab-panel hidden" id="tab-terms">
+          <h2>Termos e Condicoes</h2>
+          <div class="terms">
+            <p>1. O sistema possui duas secoes: "Missoes Oferecidas" e "Pedidos em Leilao Reverso".</p>
+            <p>2. Ao criar, aceitar ou fechar um deal, o compromisso e irrevogavel dentro da plataforma.</p>
+            <p>3. Se uma pessoa promete executar e nao executar, ela deve devolver/pagar aos pledgers o mesmo montante prometido para ela.</p>
+            <p>4. Quando um deal fecha, os valores pledged viram obrigacoes financeiras em "Meu saldo".</p>
+            <p>5. Apenas quem deve receber pode marcar "Declarar recebido" para encerrar aquele item de saldo.</p>
+            <p>6. Em grupos, o dono do grupo controla aprovacoes de entrada pendentes.</p>
+            <p>7. Este sistema nao processa pagamento automatico; ele registra compromissos e pendencias.</p>
+          </div>
+        </section>
       </section>
     </main>
 
-    <template id="thread-template">
+    <template id="thread-item-template">
       <article class="thread-item">
         <div class="row-between">
-          <h3 class="thread-title"></h3>
+          <h3 class="title"></h3>
           <span class="badge"></span>
         </div>
-
-        <p class="thread-author"></p>
-        <p class="thread-description"></p>
-        <p class="thread-meta"></p>
-        <div class="progress-wrap">
-          <div class="progress"><span></span></div>
-          <p class="progress-text"></p>
-        </div>
-
-        <div class="thread-actions"></div>
-
-        <div class="pledge-box">
-          <h4>Fazer pledge</h4>
-          <form class="pledge-form">
-            <input type="number" min="1" name="amount" placeholder="Valor (R$)" required />
-            <button type="submit">Contribuir</button>
-          </form>
-          <p class="pledge-hint">Pledge usa automaticamente seu username logado.</p>
-        </div>
-
+        <p class="author"></p>
+        <p class="desc"></p>
+        <p class="meta"></p>
+        <div class="progress"><span></span></div>
+        <p class="progress-text"></p>
+        <div class="actions"></div>
+        <form class="pledge-form inline-form">
+          <input type="number" min="1" name="amount" placeholder="Pledge (R$)" required />
+          <button type="submit">Pledgar</button>
+        </form>
         <details>
-          <summary>Ver apoios</summary>
-          <ul class="pledge-list"></ul>
+          <summary>Ver pledges</summary>
+          <ul class="list"></ul>
         </details>
       </article>
     </template>
 
-    <template id="challenge-template">
+    <template id="reverse-item-template">
       <article class="thread-item">
         <div class="row-between">
-          <h3 class="challenge-title"></h3>
+          <h3 class="title"></h3>
           <span class="badge"></span>
         </div>
-        <p class="thread-description"></p>
-        <p class="thread-meta"></p>
-        <div class="thread-actions"></div>
+        <p class="author"></p>
+        <p class="desc"></p>
+        <p class="meta"></p>
+        <p class="progress-text"></p>
+        <div class="actions"></div>
+        <form class="bid-form inline-form">
+          <input type="number" min="1" name="askAmount" placeholder="Eu faria por (R$)" required />
+          <button type="submit">Dar lance</button>
+        </form>
+        <form class="pledge-form inline-form">
+          <input type="number" min="1" name="amount" placeholder="Pledge no pedido (R$)" required />
+          <button type="submit">Apoiar pedido</button>
+        </form>
+        <details>
+          <summary>Ver ofertas e pledges</summary>
+          <div class="dual-lists">
+            <ul class="bids"></ul>
+            <ul class="pledges"></ul>
+          </div>
+        </details>
       </article>
     </template>
 
