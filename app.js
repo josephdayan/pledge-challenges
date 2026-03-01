@@ -1,15 +1,11 @@
 let token = localStorage.getItem("pledgecity_token") || "";
-let activeGroupId = localStorage.getItem("pledgecity_active_group") || "";
 let me = null;
-let groups = [];
 let threads = [];
 let reverseRequests = [];
 let balance = { owes: 0, toReceive: 0, entries: [] };
 
 const authView = document.getElementById("auth-view");
 const balanceView = document.getElementById("balance-view");
-const groupsView = document.getElementById("groups-view");
-const activeGroupSelect = document.getElementById("active-group-select");
 const statsView = document.getElementById("global-stats");
 const threadList = document.getElementById("thread-list");
 const reverseList = document.getElementById("reverse-list");
@@ -17,7 +13,6 @@ const threadTpl = document.getElementById("thread-item-template");
 const reverseTpl = document.getElementById("reverse-item-template");
 const threadForm = document.getElementById("thread-form");
 const reverseForm = document.getElementById("reverse-form");
-const groupCreateForm = document.getElementById("group-create-form");
 
 function money(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
@@ -48,14 +43,6 @@ async function api(path, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Erro na API");
   return data;
-}
-
-function findGroupById(id) {
-  return groups.find((g) => g.id === id);
-}
-
-function selectedUsernamesFromMulti(selectEl) {
-  return Array.from(selectEl.selectedOptions || []).map((x) => x.value).filter(Boolean);
 }
 
 function renderAuth() {
@@ -176,115 +163,6 @@ function renderBalance() {
   });
 }
 
-function hydrateGroupSelector() {
-  if (!me || !groups.length) {
-    activeGroupSelect.innerHTML = `<option value="">Sem grupo</option>`;
-    activeGroupId = "";
-    localStorage.removeItem("pledgecity_active_group");
-    return;
-  }
-
-  if (!groups.some((g) => g.id === activeGroupId)) {
-    activeGroupId = groups[0].id;
-  }
-
-  activeGroupSelect.innerHTML = groups.map((g) => `<option value="${g.id}">${g.name}</option>`).join("");
-  activeGroupSelect.value = activeGroupId;
-  localStorage.setItem("pledgecity_active_group", activeGroupId);
-}
-
-function renderGroups() {
-  if (!me) {
-    groupsView.innerHTML = `<p class="empty">Faca login para usar grupos.</p>`;
-    return;
-  }
-
-  groupsView.innerHTML =
-    groups
-      .map((g) => {
-        const pending = g.pending || [];
-        const pendingHtml = pending
-          .map(
-            (p) => `<li>${p.username} ${g.isOwner ? `<button type="button" data-approve="${g.id}:${p.membershipId}">Aprovar</button>` : ""}</li>`
-          )
-          .join("");
-        return `
-          <article class="thread-item">
-            <h3>${g.name}</h3>
-            <p class="meta">Dono: @${g.ownerUsername}</p>
-            <p class="meta">Membros: ${g.members.map((m) => "@" + m).join(", ") || "-"}</p>
-            <details><summary>Pendentes</summary><ul class="list">${pendingHtml || "<li>Sem pendencias.</li>"}</ul></details>
-            ${
-              g.isOwner
-                ? `<form class="inline-form" data-invite="${g.id}"><input name="username" placeholder="convidar username" required/><button type="submit">Convidar</button></form>`
-                : ""
-            }
-          </article>
-        `;
-      })
-      .join("") || `<p class="empty">Nenhum grupo ainda.</p>`;
-
-  groupsView.querySelectorAll("button[data-approve]").forEach((btn) => {
-    btn.onclick = async () => {
-      const [groupId, membershipId] = String(btn.dataset.approve).split(":");
-      try {
-        await api(`/api/groups/${groupId}/approve`, { method: "POST", body: JSON.stringify({ membershipId }) });
-        await refresh();
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-  });
-
-  groupsView.querySelectorAll("form[data-invite]").forEach((form) => {
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const groupId = form.dataset.invite;
-      const fd = new FormData(form);
-      const username = String(fd.get("username") || "").trim().toLowerCase();
-      try {
-        await api(`/api/groups/${groupId}/invite`, { method: "POST", body: JSON.stringify({ username }) });
-        form.reset();
-        await refresh();
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-  });
-
-  hydrateAudienceControls();
-}
-
-function hydrateAudienceControls() {
-  const groupOptions = groups;
-  document.querySelectorAll(".group-select").forEach((select) => {
-    const prev = select.value || activeGroupId;
-    select.innerHTML = `<option value="">Selecione...</option>${groupOptions
-      .map((g) => `<option value="${g.id}">${g.name}</option>`)
-      .join("")}`;
-    if (prev && groupOptions.some((g) => g.id === prev)) select.value = prev;
-  });
-
-  const updateTargets = (form) => {
-    const gSel = form.querySelector(".group-select");
-    const tSel = form.querySelector(".targets-select");
-    const mode = form.querySelector(".audience-mode")?.value || "group";
-    const group = findGroupById(gSel.value || activeGroupId);
-    const members = (group?.members || []).filter((u) => u !== me?.username);
-    tSel.innerHTML = members.map((u) => `<option value="${u}">${u}</option>`).join("");
-    tSel.disabled = mode !== "specific";
-  };
-
-  [threadForm, reverseForm].forEach((form) => {
-    if (!form) return;
-    const gSel = form.querySelector(".group-select");
-    if (!gSel.value && activeGroupId) gSel.value = activeGroupId;
-    form.querySelector(".group-select").onchange = () => updateTargets(form);
-    form.querySelector(".audience-mode").onchange = () => updateTargets(form);
-    updateTargets(form);
-  });
-}
-
 function threadBadge(status) {
   if (status === "funded") return ["Meta batida", "badge-funded"];
   if (status === "committed_current") return ["Commit parcial", "badge-commit"];
@@ -298,12 +176,8 @@ function reverseBadge(status) {
 
 function renderThreads() {
   threadList.innerHTML = "";
-  if (!activeGroupId) {
-    threadList.innerHTML = `<p class="empty">Selecione ou crie um grupo para ver missoes.</p>`;
-    return;
-  }
   if (!threads.length) {
-    threadList.innerHTML = `<p class="empty">Sem missoes neste grupo.</p>`;
+    threadList.innerHTML = `<p class="empty">Sem missoes ainda.</p>`;
     return;
   }
 
@@ -317,9 +191,7 @@ function renderThreads() {
     node.querySelector(".badge").classList.add(badgeClass);
     node.querySelector(".author").textContent = `@${item.creatorUsername}`;
     node.querySelector(".desc").textContent = item.description;
-    node.querySelector(".meta").textContent = `Meta ${money(item.targetAmount)} | Prazo ${dtText(item.deadlineAt)}${
-      item.targets?.length ? ` | Alvos: ${item.targets.map((x) => "@" + x).join(", ")}` : ""
-    }`;
+    node.querySelector(".meta").textContent = `Meta ${money(item.targetAmount)} | Prazo ${dtText(item.deadlineAt)}`;
 
     node.querySelector(".progress span").style.width = `${progress}%`;
     node.querySelector(".progress-text").textContent = `${money(item.pledgedTotal)} de ${money(item.targetAmount)} (${progress.toFixed(
@@ -413,12 +285,8 @@ function renderThreads() {
 
 function renderReverse() {
   reverseList.innerHTML = "";
-  if (!activeGroupId) {
-    reverseList.innerHTML = `<p class="empty">Selecione ou crie um grupo para ver pedidos.</p>`;
-    return;
-  }
   if (!reverseRequests.length) {
-    reverseList.innerHTML = `<p class="empty">Sem pedidos neste grupo.</p>`;
+    reverseList.innerHTML = `<p class="empty">Sem pedidos ainda.</p>`;
     return;
   }
 
@@ -431,9 +299,7 @@ function renderReverse() {
     node.querySelector(".badge").classList.add(badgeClass);
     node.querySelector(".author").textContent = `Criado por @${item.creatorUsername}`;
     node.querySelector(".desc").textContent = item.description;
-    node.querySelector(".meta").textContent = item.targets?.length
-      ? `Alvos: ${item.targets.map((x) => "@" + x).join(", ")}`
-      : "Grupo inteiro";
+    node.querySelector(".meta").textContent = "Pedido aberto para a comunidade";
 
     const low = item.lowestBid;
     node.querySelector(".progress-text").textContent = `Menor oferta atual: ${
@@ -475,7 +341,7 @@ function renderReverse() {
     const bidForm = node.querySelector(".bid-form");
     const pledgeForm = node.querySelectorAll(".pledge-form")[0];
 
-    if (!me || item.status !== "open" || !item.canBid) {
+    if (!me || item.status !== "open") {
       bidForm.replaceWith(document.createElement("div"));
     } else {
       bidForm.onsubmit = async (e) => {
@@ -525,34 +391,18 @@ async function refresh() {
     }
 
     if (me) {
-      const [g, b] = await Promise.all([api("/api/groups"), api("/api/balance")]);
-      groups = g.groups || [];
+      const [t, r, b] = await Promise.all([api("/api/threads"), api("/api/reverse"), api("/api/balance")]);
+      threads = t.threads || [];
+      reverseRequests = r.requests || [];
       balance = b;
-      hydrateGroupSelector();
-
-      if (activeGroupId) {
-        const [t, r] = await Promise.all([
-          api(`/api/threads?groupId=${encodeURIComponent(activeGroupId)}`),
-          api(`/api/reverse?groupId=${encodeURIComponent(activeGroupId)}`)
-        ]);
-        threads = t.threads || [];
-        reverseRequests = r.requests || [];
-      } else {
-        threads = [];
-        reverseRequests = [];
-      }
     } else {
-      groups = [];
-      threads = [];
-      reverseRequests = [];
+      const [t, r] = await Promise.all([api("/api/threads"), api("/api/reverse")]);
+      threads = t.threads || [];
+      reverseRequests = r.requests || [];
       balance = { owes: 0, toReceive: 0, entries: [] };
-      activeGroupId = "";
-      localStorage.removeItem("pledgecity_active_group");
-      hydrateGroupSelector();
     }
 
     renderAuth();
-    renderGroups();
     renderBalance();
     renderThreads();
     renderReverse();
@@ -572,16 +422,12 @@ threadForm.onsubmit = async (e) => {
     description: String(fd.get("description") || "").trim(),
     targetAmount: Number(fd.get("targetAmount") || 0),
     deadlineDate: String(fd.get("deadlineDate") || ""),
-    deadlineHour: String(fd.get("deadlineHour") || ""),
-    audienceMode: String(fd.get("audienceMode") || "group"),
-    groupId: String(fd.get("groupId") || activeGroupId || ""),
-    targetUsernames: selectedUsernamesFromMulti(threadForm.querySelector(".targets-select"))
+    deadlineHour: String(fd.get("deadlineHour") || "")
   };
 
   try {
     await api("/api/threads", { method: "POST", body: JSON.stringify(payload) });
     threadForm.reset();
-    hydrateAudienceControls();
     await refresh();
   } catch (err) {
     alert(err.message);
@@ -595,48 +441,16 @@ reverseForm.onsubmit = async (e) => {
   const payload = {
     title: String(fd.get("title") || "").trim(),
     description: String(fd.get("description") || "").trim(),
-    seedAmount: Number(fd.get("seedAmount") || 0),
-    audienceMode: String(fd.get("audienceMode") || "group"),
-    groupId: String(fd.get("groupId") || activeGroupId || ""),
-    targetUsernames: selectedUsernamesFromMulti(reverseForm.querySelector(".targets-select"))
+    seedAmount: Number(fd.get("seedAmount") || 0)
   };
 
   try {
     await api("/api/reverse", { method: "POST", body: JSON.stringify(payload) });
     reverseForm.reset();
-    hydrateAudienceControls();
     await refresh();
   } catch (err) {
     alert(err.message);
   }
-};
-
-groupCreateForm.onsubmit = async (e) => {
-  e.preventDefault();
-  if (!me) return alert("Faca login antes.");
-  const fd = new FormData(groupCreateForm);
-  const invitedUsernames = String(fd.get("invites") || "")
-    .split(",")
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
-
-  try {
-    await api("/api/groups", {
-      method: "POST",
-      body: JSON.stringify({ name: String(fd.get("name") || "").trim(), invitedUsernames })
-    });
-    groupCreateForm.reset();
-    await refresh();
-  } catch (err) {
-    alert(err.message);
-  }
-};
-
-activeGroupSelect.onchange = async () => {
-  activeGroupId = activeGroupSelect.value || "";
-  if (activeGroupId) localStorage.setItem("pledgecity_active_group", activeGroupId);
-  else localStorage.removeItem("pledgecity_active_group");
-  await refresh();
 };
 
 document.querySelectorAll(".tab").forEach((tab) => {

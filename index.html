@@ -29,17 +29,6 @@
 
         <h2>Meu saldo</h2>
         <div id="balance-view" class="stack"></div>
-
-        <h2>Grupos</h2>
-        <label>Grupo ativo
-          <select id="active-group-select"></select>
-        </label>
-        <form id="group-create-form">
-          <label>Nome do grupo<input type="text" name="name" required /></label>
-          <label>Convidar users (separe por virgula)<input type="text" name="invites" placeholder="ana,rafa,daniel" /></label>
-          <button type="submit">Criar grupo</button>
-        </form>
-        <div id="groups-view" class="stack"></div>
       </aside>
 
       <section class="card">
@@ -60,25 +49,6 @@
               <label>Hora limite (Brasilia)<input type="time" name="deadlineHour" required /></label>
             </div>
 
-            <div class="grid-3">
-              <label>
-                Alcance
-                <select name="audienceMode" class="audience-mode">
-                  <option value="open">Aberto</option>
-                  <option value="group">Grupo inteiro</option>
-                  <option value="specific">Usuarios especificos</option>
-                </select>
-              </label>
-              <label>
-                Grupo
-                <select name="groupId" class="group-select"></select>
-              </label>
-              <label>
-                Alvos (usernames)
-                <select name="targets" class="targets-select" multiple></select>
-              </label>
-            </div>
-
             <button type="submit">Publicar missao</button>
           </form>
 
@@ -91,28 +61,7 @@
           <form id="reverse-form">
             <label>Titulo do pedido<input type="text" name="title" required /></label>
             <label>Descricao<textarea name="description" rows="3" required></textarea></label>
-            <div class="grid-2">
-              <label>Seu pledge inicial (R$)<input type="number" min="0" name="seedAmount" value="0" required /></label>
-              <label>
-                Alcance
-                <select name="audienceMode" class="audience-mode">
-                  <option value="group">Grupo inteiro</option>
-                  <option value="specific">Usuarios especificos</option>
-                  <option value="open">Aberto</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="grid-2">
-              <label>
-                Grupo
-                <select name="groupId" class="group-select"></select>
-              </label>
-              <label>
-                Alvos (usernames)
-                <select name="targets" class="targets-select" multiple></select>
-              </label>
-            </div>
+            <label>Seu pledge inicial (R$)<input type="number" min="0" name="seedAmount" value="0" required /></label>
 
             <button type="submit">Criar pedido</button>
           </form>
@@ -129,8 +78,7 @@
             <p>3. Se uma pessoa promete executar e nao executar, ela deve devolver/pagar aos pledgers o mesmo montante prometido para ela.</p>
             <p>4. Quando um deal fecha, os valores pledged viram obrigacoes financeiras em "Meu saldo".</p>
             <p>5. Apenas quem deve receber pode marcar "Declarar recebido" para encerrar aquele item de saldo.</p>
-            <p>6. Em grupos, o dono do grupo controla aprovacoes de entrada pendentes.</p>
-            <p>7. Este sistema nao processa pagamento automatico; ele registra compromissos e pendencias.</p>
+            <p>6. Este sistema nao processa pagamento automatico; ele registra compromissos e pendencias.</p>
           </div>
         </section>
       </section>

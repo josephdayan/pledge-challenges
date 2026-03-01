@@ -334,25 +334,11 @@ def _is_group_member(session, group_id: str, user_id: str) -> bool:
 
 
 def _thread_user_allowed(session, thread: Thread, user: User) -> bool:
-    if thread.audience_mode == "open":
-        return True
-    if thread.audience_mode == "group":
-        return bool(thread.group_id and _is_group_member(session, thread.group_id, user.id))
-    if thread.audience_mode == "specific":
-        target_ids = {target.user_id for target in thread.targets}
-        return user.id in target_ids
-    return False
+    return True
 
 
 def _reverse_user_allowed_to_bid(session, req: ReverseRequest, user: User) -> bool:
-    if req.audience_mode == "open":
-        return True
-    if req.audience_mode == "group":
-        return bool(req.group_id and _is_group_member(session, req.group_id, user.id))
-    if req.audience_mode == "specific":
-        target_ids = {target.user_id for target in req.targets}
-        return user.id in target_ids
-    return False
+    return True
 
 
 def _lowest_active_bid(req: ReverseRequest) -> ReverseBid | None:
@@ -842,16 +828,11 @@ def list_groups() -> object:
 @app.get("/api/threads")
 def get_threads() -> object:
     token = _token_from_request()
-    group_id = str(request.args.get("groupId", "")).strip()
 
     with session_scope() as session:
         viewer = _user_from_token(session, token)
         if not viewer:
             return jsonify({"threads": []})
-        if not group_id:
-            return jsonify({"threads": []})
-        if not _is_group_member(session, group_id, viewer.id):
-            return jsonify({"error": "Voce nao participa deste grupo."}), 403
 
         threads = (
             session.query(Thread)
@@ -862,7 +843,6 @@ def get_threads() -> object:
                 selectinload(Thread.pledges).selectinload(ThreadPledge.supporter),
                 selectinload(Thread.comments).selectinload(ThreadComment.user),
             )
-            .filter(Thread.group_id == group_id)
             .order_by(Thread.created_at.desc())
             .all()
         )
@@ -878,9 +858,7 @@ def create_thread() -> object:
     description = str(payload.get("description", "")).strip()
     deadline_date = str(payload.get("deadlineDate", "")).strip()
     deadline_hour = str(payload.get("deadlineHour", "")).strip()
-    audience_mode = str(payload.get("audienceMode", "group")).strip().lower()
-    group_id = str(payload.get("groupId", "")).strip() or None
-    target_usernames = payload.get("targetUsernames", []) or []
+    audience_mode = "open"
 
     try:
         target_amount = float(payload.get("targetAmount", 0))
@@ -891,21 +869,10 @@ def create_thread() -> object:
     if not title or not description or target_amount < 1 or not deadline:
         return jsonify({"error": "Dados invalidos para criar thread."}), 400
 
-    if audience_mode not in {"group", "specific"}:
-        return jsonify({"error": "Audience invalido."}), 400
-
     with session_scope() as session:
         creator = _user_from_token(session, token)
         if not creator:
             return jsonify({"error": "Login necessario."}), 401
-
-        if not group_id:
-            return jsonify({"error": "Selecione um grupo."}), 400
-        group = session.get(Group, group_id)
-        if not group:
-            return jsonify({"error": "Grupo nao encontrado."}), 404
-        if not _is_group_member(session, group.id, creator.id):
-            return jsonify({"error": "Voce nao faz parte desse grupo."}), 403
 
         thread = Thread(
             id=str(uuid.uuid4()),
@@ -917,24 +884,10 @@ def create_thread() -> object:
             created_at=_now_ms(),
             committed_current=False,
             committed_amount=0,
-            group_id=group.id if group else None,
+            group_id=None,
             audience_mode=audience_mode,
         )
         session.add(thread)
-        session.flush()
-
-        if audience_mode == "specific":
-            usernames = sorted({str(x).strip().lower() for x in target_usernames if str(x).strip()})
-            if not usernames:
-                return jsonify({"error": "Escolha ao menos um usuario alvo."}), 400
-
-            for username in usernames:
-                user = session.query(User).filter(User.username == username).first()
-                if not user:
-                    continue
-                if not _is_group_member(session, group.id, user.id):
-                    continue
-                session.add(ThreadTarget(id=str(uuid.uuid4()), thread_id=thread.id, user_id=user.id))
 
     return jsonify({"ok": True}), 201
 
@@ -968,8 +921,6 @@ def create_thread_pledge(thread_id: str) -> object:
 
         if not _thread_user_allowed(session, thread, user):
             return jsonify({"error": "Voce nao pode participar dessa thread."}), 403
-        if thread.group_id and not _is_group_member(session, thread.group_id, user.id):
-            return jsonify({"error": "Voce nao participa do grupo desta thread."}), 403
 
         pledged_total = sum(float(p.amount) for p in thread.pledges)
         if _thread_status(thread, pledged_total) != "open":
@@ -1012,8 +963,6 @@ def create_thread_comment(thread_id: str) -> object:
         thread = session.query(Thread).options(selectinload(Thread.targets)).filter(Thread.id == thread_id).first()
         if not thread:
             return jsonify({"error": "Thread nao encontrada."}), 404
-        if thread.group_id and not _is_group_member(session, thread.group_id, user.id):
-            return jsonify({"error": "Voce nao participa do grupo desta thread."}), 403
         if not _thread_user_allowed(session, thread, user):
             return jsonify({"error": "Voce nao pode comentar nesta thread."}), 403
 
@@ -1080,16 +1029,11 @@ def delete_thread(thread_id: str) -> object:
 @app.get("/api/reverse")
 def list_reverse() -> object:
     token = _token_from_request()
-    group_id = str(request.args.get("groupId", "")).strip()
 
     with session_scope() as session:
         viewer = _user_from_token(session, token)
         if not viewer:
             return jsonify({"requests": []})
-        if not group_id:
-            return jsonify({"requests": []})
-        if not _is_group_member(session, group_id, viewer.id):
-            return jsonify({"error": "Voce nao participa deste grupo."}), 403
 
         rows = (
             session.query(ReverseRequest)
@@ -1101,7 +1045,6 @@ def list_reverse() -> object:
                 selectinload(ReverseRequest.pledges).selectinload(ReversePledge.supporter),
                 selectinload(ReverseRequest.comments).selectinload(ReverseComment.user),
             )
-            .filter(ReverseRequest.group_id == group_id)
             .order_by(ReverseRequest.created_at.desc())
             .all()
         )
@@ -1116,9 +1059,7 @@ def create_reverse() -> object:
 
     title = str(payload.get("title", "")).strip()
     description = str(payload.get("description", "")).strip()
-    audience_mode = str(payload.get("audienceMode", "group")).strip().lower()
-    group_id = str(payload.get("groupId", "")).strip() or None
-    target_usernames = payload.get("targetUsernames", []) or []
+    audience_mode = "open"
 
     try:
         seed_amount = float(payload.get("seedAmount", 0))
@@ -1127,8 +1068,6 @@ def create_reverse() -> object:
 
     if not title or not description:
         return jsonify({"error": "Titulo e descricao sao obrigatorios."}), 400
-    if audience_mode not in {"group", "specific"}:
-        return jsonify({"error": "Audience invalido."}), 400
     if seed_amount < 0:
         return jsonify({"error": "Seed invalido."}), 400
 
@@ -1137,14 +1076,6 @@ def create_reverse() -> object:
         if not creator:
             return jsonify({"error": "Login necessario."}), 401
 
-        if not group_id:
-            return jsonify({"error": "Selecione um grupo."}), 400
-        group = session.get(Group, group_id)
-        if not group:
-            return jsonify({"error": "Grupo nao encontrado."}), 404
-        if not _is_group_member(session, group.id, creator.id):
-            return jsonify({"error": "Voce nao faz parte desse grupo."}), 403
-
         req = ReverseRequest(
             id=str(uuid.uuid4()),
             creator_id=creator.id,
@@ -1152,25 +1083,11 @@ def create_reverse() -> object:
             description=description,
             created_at=_now_ms(),
             status="open",
-            group_id=group.id if group else None,
+            group_id=None,
             audience_mode=audience_mode,
             winner_bid_id=None,
         )
         session.add(req)
-        session.flush()
-
-        if audience_mode == "specific":
-            usernames = sorted({str(x).strip().lower() for x in target_usernames if str(x).strip()})
-            if not usernames:
-                return jsonify({"error": "Escolha ao menos um usuario alvo."}), 400
-
-            for username in usernames:
-                user = session.query(User).filter(User.username == username).first()
-                if not user:
-                    continue
-                if group and not _is_group_member(session, group.id, user.id):
-                    continue
-                session.add(ReverseTarget(id=str(uuid.uuid4()), request_id=req.id, user_id=user.id))
 
         if seed_amount > 0:
             session.add(
@@ -1216,8 +1133,6 @@ def create_or_update_bid(request_id: str) -> object:
             return jsonify({"error": "Pedido ja encerrado."}), 400
         if not _reverse_user_allowed_to_bid(session, req, user):
             return jsonify({"error": "Voce nao pode dar lance nesse pedido."}), 403
-        if req.group_id and not _is_group_member(session, req.group_id, user.id):
-            return jsonify({"error": "Voce nao participa do grupo deste pedido."}), 403
 
         own_bid = (
             session.query(ReverseBid)
@@ -1274,8 +1189,6 @@ def create_reverse_pledge(request_id: str) -> object:
             return jsonify({"error": "Pedido nao encontrado."}), 404
         if req.status != "open":
             return jsonify({"error": "Pedido ja encerrado."}), 400
-        if req.group_id and not _is_group_member(session, req.group_id, user.id):
-            return jsonify({"error": "Voce nao participa do grupo deste pedido."}), 403
 
         low = _lowest_active_bid(req)
         current_total = sum(float(p.amount) for p in req.pledges)
@@ -1317,8 +1230,6 @@ def create_reverse_comment(request_id: str) -> object:
         req = session.query(ReverseRequest).options(selectinload(ReverseRequest.targets)).filter(ReverseRequest.id == request_id).first()
         if not req:
             return jsonify({"error": "Pedido nao encontrado."}), 404
-        if req.group_id and not _is_group_member(session, req.group_id, user.id):
-            return jsonify({"error": "Voce nao participa do grupo deste pedido."}), 403
         if not _reverse_user_allowed_to_bid(session, req, user):
             return jsonify({"error": "Voce nao pode comentar neste pedido."}), 403
 
